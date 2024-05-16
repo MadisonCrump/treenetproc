@@ -385,10 +385,10 @@ download_series <- function(meta_series, data_format,
       if (data_format == "L2")   db_version <- NULL
       if (data_format == "LM")   db_version <- NULL
       if (data_format == "L2M") {db_version <- NULL
-      ts.max.LM <- sqldf::sqldf(paste0("SELECT until_lm FROM view_imported_dendro WHERE series_id = ", meta_series$series_id[i], " ;"),
-                                connection = con)$until_lm
-      ts.max.L2 <- sqldf::sqldf(paste0("SELECT until_l2 FROM view_imported_dendro WHERE series_id = ", meta_series$series_id[i], " ;"),
-                                connection = con)$until_l2
+      ts.max.LM <- sqldf::sqldf(paste0("SELECT import_until FROM import_log WHERE table_name = 'data_dendro_lm' AND series_id = ", meta_series$series_id[i], " ;"),
+                                connection = con)$import_until
+      ts.max.L2 <- sqldf::sqldf(paste0("SELECT import_until FROM import_log WHERE table_name= 'data_dendro_l2' AND series_id = ", meta_series$series_id[i], " ;"),
+                                connection = con)$import_until
       db_time.LM     <- NULL
       db_time.L2     <- NULL
 
