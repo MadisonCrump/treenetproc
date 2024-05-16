@@ -216,9 +216,9 @@ select_ref_data <- function(meta_list) {
                   site_id       = site_id,
                   sensor_name   = sensor_name,
                   site_temp_ref = site_temp_ref,
-                  tol_out       = tree_proc_tol_out,
-                  tol_jump      = tree_proc_tol_jump,
-                  lowtemp       = tree_proc_frost_thr)
+                  tol_out       = series_proc_tol_out,
+                  tol_jump      = series_proc_tol_jump,
+                  lowtemp       = series_proc_frost_thr)
 
   return(meta_ref)
 }
