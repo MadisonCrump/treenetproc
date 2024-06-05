@@ -393,8 +393,8 @@ download_series <- function(meta_series, data_format,
       db_time.L2     <- NULL
 
 
-      if (is.na(ts.max.L2)) message(paste0("There is no L2 data available for ", meta_series$measure_point[i], "."))
-      if (is.na(ts.max.LM)) {
+      if (length(ts.max.L2) == 0 || is.na(ts.max.L2)) message(paste0("There is no L2 data available for ", meta_series$measure_point[i], "."))
+      if (length(ts.max.LM) == 0 || is.na(ts.max.LM)) {
         message(paste0("There is no LM data available for ", meta_series$measure_point[i], ". Using L2 data."))
         if (meteo) {
           foo <- sqldf::sqldf(paste0("SELECT l.*, data_meteo_l2.*,
