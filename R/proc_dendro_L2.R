@@ -95,7 +95,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
                            plot = TRUE, plot_period = "full",
                            plot_show = "all", plot_export = TRUE,
                            plot_name = "proc_L2_plot",
-                           iter_clean = 1, tz = "UTC") {
+                           iter_clean = 1, tz = "Etc/GMT-1") {
 
   # Check input variables -----------------------------------------------------
   list_inputs <- mget(ls())

@@ -55,7 +55,7 @@
 #'
 proc_L1 <- function(data_L0, reso = 10, input = "long",
                     date_format = "%Y-%m-%d %H:%M:%S", year = "asis",
-                    tz = "UTC") {
+                    tz = "Etc/GMT-1") {
 
   # Check input variables -----------------------------------------------------
   list_inputs <- mget(ls())

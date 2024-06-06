@@ -10,7 +10,7 @@ proc_L1(
   input = "long",
   date_format = "\%Y-\%m-\%d \%H:\%M:\%S",
   year = "asis",
-  tz = "UTC"
+  tz = "Etc/GMT-1"
 )
 }
 \arguments{

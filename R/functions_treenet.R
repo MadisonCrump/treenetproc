@@ -276,14 +276,13 @@ download_series <- function(meta_series, data_format,
 
   # Load functions ------------------------------------------------------------
   Sys.setenv(TZ = tz)
-  setUTC1 <- function() {
-    temp <- as.character(sqldf::sqldf("show timezone", connection = con))
-    if (temp != tz) {
-      xx <- sqldf::sqldf(paste0("SET TIME ZONE '", tz, "'"), connection = con)
-    }
-    temp <- as.character(sqldf::sqldf("show timezone", connection = con))
-    if (temp != tz) {
-      stop("Error with timestamp in database.")
+
+  # Function to set the time zone in the database connection
+  set_db_timezone <- function(con, tz) {
+    DBI::dbExecute(con, paste0("SET TIME ZONE '", tz, "'"))
+    current_tz <- DBI::dbGetQuery(con, "SHOW timezone")
+    if (current_tz != tz) {
+      stop("Error setting the database time zone.")
     }
   }
 
@@ -306,11 +305,11 @@ download_series <- function(meta_series, data_format,
   if (length(from) == 0) {
     from <- "1970-01-01"
   }
-  from <- as.POSIXct(as.character(from), format = "%Y-%m-%d", tz = tz)
+  from <- as.POSIXct(as.character(from), format = "%Y-%m-%d", tz = "Etc/GMT-1")
   if (length(to) == 0) {
     to <- lubridate::today() %>% as.character()
   }
-  to <- as.POSIXct(as.character(to), format = "%Y-%m-%d", tz = tz) +86399
+  to <- as.POSIXct(as.character(to), format = "%Y-%m-%d", tz = "Etc/GMT-1") +86399
 
   # download series
   options(warn = -1)
@@ -318,8 +317,8 @@ download_series <- function(meta_series, data_format,
   # find unique meta_series take first start and last stop date per series_id
   # Assume all other metadata is identical in other rows
   meta_series <- meta_series %>% dplyr::group_by(series_id) %>%
-    dplyr::mutate(start = min(as.POSIXct(series_start, format = "%d.%m.%Y", tz = tz),       na.rm=F),
-                  stop =  max(as.POSIXct(series_stop,  format = "%d.%m.%Y", tz = tz)+86399, na.rm=F)) %>%
+    dplyr::mutate(start = min(as.POSIXct(series_start, format = "%d.%m.%Y", tz = "Etc/GMT-1"),       na.rm=F),
+                  stop =  max(as.POSIXct(series_stop,  format = "%d.%m.%Y", tz = "Etc/GMT-1")+86399, na.rm=F)) %>%
     dplyr::slice(1) %>% dplyr::ungroup()
 
   server_data <- vector("list", length = nrow(meta_series))
@@ -327,10 +326,10 @@ download_series <- function(meta_series, data_format,
     if (server == "treenet") {
 
       # check time window request with available data
-      start <- as.POSIXct(as.character(meta_series$start[i]), format = "%Y-%m-%d", tz = tz)
-      if (is.na(start)) start <- as.POSIXct(as.character("1970-01-01"), format = "%Y-%m-%d", tz = tz)
-      stop  <- as.POSIXct(as.character(meta_series$stop[i]),  format = "%Y-%m-%d", tz = tz)+86399
-      if (is.na(stop)) stop <- lubridate::now(tz=tz)
+      start <- as.POSIXct(as.character(meta_series$start[i]), format = "%Y-%m-%d", tz = "Etc/GMT-1")
+      if (is.na(start)) start <- as.POSIXct(as.character("1970-01-01"), format = "%Y-%m-%d", tz = "Etc/GMT-1")
+      stop  <- as.POSIXct(as.character(meta_series$stop[i]),  format = "%Y-%m-%d", tz = "Etc/GMT-1")+86399
+      if (is.na(stop)) stop <- lubridate::now(tz="Etc/GMT-1")
 
       # too early
       if (to < start) {
@@ -353,11 +352,11 @@ download_series <- function(meta_series, data_format,
       to.ts   <- NULL
       db_time <- NULL
       if (length(start) != 0) {
-        from.ts <- paste0(" ",db_table,".ts >= '", format(start, "%Y-%m-%d %H:%M:%S", tz = "UTC"), "'::timestamp")
+        from.ts <- paste0(" ",db_table,".ts >= '", format(start, "%Y-%m-%d %H:%M:%S", tz = "Etc/GMT-1"), "'::timestamp")
         db_time <- paste0(c(from.ts, to.ts), collapse = " AND")
       }
       if (length(stop) != 0) {
-        to.ts   <- paste0(" ",db_table,".ts <= '", format(stop, "%Y-%m-%d %H:%M:%S", tz = "UTC"), "'::timestamp")
+        to.ts   <- paste0(" ",db_table,".ts <= '", format(stop, "%Y-%m-%d %H:%M:%S", tz = "Etc/GMT-1"), "'::timestamp")
         db_time <- paste0(c(from.ts, to.ts), collapse = " AND")
       }
       if (length(last) != 0) {
@@ -373,7 +372,10 @@ download_series <- function(meta_series, data_format,
                             port     = cred$port,
                             user     = cred$user,
                             password = cred$password)
-      setUTC1()
+
+      # Set the database time zone to UTC (server default)
+      set_db_timezone(con, "UTC")
+
       # # check newest data in treenet database
       # if (data_format %in% c("LM","L2M")) {
       #   new_dataset <- sqldf::sqldf(paste0("SELECT DISTINCT dataset FROM treenetm_summary WHERE series_id = ", meta_series$series_id[i], " ORDER BY dataset DESC;"),
@@ -419,11 +421,11 @@ download_series <- function(meta_series, data_format,
       } else {
         writeLines(paste0("Data from ", meta_series$measure_point[i], " is LM until ", format(ts.max.LM, "%Y-%m-%d %H:%M:%S"), " afterwhich it is L2."))
 
-        if (length(from) == 0) from <- as.POSIXct("1970-01-01", format = "%Y-%m-%d", tz = tz)
-        if (length(to)   == 0) to   <- as.POSIXct("2100-01-01", format = "%Y-%m-%d", tz = tz)
+        if (length(from) == 0) from <- as.POSIXct("1970-01-01", format = "%Y-%m-%d", tz = "Etc/GMT-1")
+        if (length(to)   == 0) to   <- as.POSIXct("2100-01-01", format = "%Y-%m-%d", tz = "Etc/GMT-1")
 
-        db_time.LM <-paste0(" AND ts > '", as.POSIXct(min(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = tz), "'::timestamp AND ts <= '", as.POSIXct(min(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = tz), "'::timestamp")
-        db_time.L2 <-paste0(" AND ts > '", as.POSIXct(max(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = tz), "'::timestamp AND ts <= '", as.POSIXct(max(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = tz), "'::timestamp")
+        db_time.LM <-paste0(" AND ts > '", as.POSIXct(min(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND ts <= '", as.POSIXct(min(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
+        db_time.L2 <-paste0(" AND ts > '", as.POSIXct(max(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND ts <= '", as.POSIXct(max(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
         if (meteo) {
           foo <- sqldf::sqldf(paste0("SELECT l2m.*, data_meteo_l2.*,
                             CASE WHEN data_meteo_l2.temp IS NULL THEN data_all_l1.value ELSE data_meteo_l2.temp END AS temperature
@@ -491,7 +493,8 @@ download_series <- function(meta_series, data_format,
 
     df <- foo %>%
       dplyr::select_if(!(names(.) %in% "insert_date")) %>%
-      transform(ts = lubridate::with_tz(ts, tzone = tz)) %>%
+      transform(ts = lubridate::force_tz(ts, tzone = "Etc/GMT-1")) %>%  # Force the timezone to Etc/GMT-1
+      transform(ts = lubridate::with_tz(ts, tzone = tz)) %>%  # Convert to desired timezone
       dplyr::rename(series = series_id) %>% # !!!! Try to remove series rename ----
     dplyr::arrange(ts) %>%
       dplyr::distinct() %>%
