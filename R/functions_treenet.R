@@ -348,19 +348,13 @@ download_series <- function(meta_series, data_format,
       stop  <- min(to  , stop)
 
       # specify time window
-      from.ts <- NULL
-      to.ts   <- NULL
-      db_time <- NULL
-      if (length(start) != 0) {
-        from.ts <- paste0(" ",db_table,".ts >= '", format(start, "%Y-%m-%d %H:%M:%S", tz = "Etc/GMT-1"), "'::timestamp")
-        db_time <- paste0(c(from.ts, to.ts), collapse = " AND")
-      }
-      if (length(stop) != 0) {
-        to.ts   <- paste0(" ",db_table,".ts <= '", format(stop, "%Y-%m-%d %H:%M:%S", tz = "Etc/GMT-1"), "'::timestamp")
-        db_time <- paste0(c(from.ts, to.ts), collapse = " AND")
-      }
+      db_time <- paste0(db_table, ".ts BETWEEN '",
+                        format(start, "%Y-%m-%d %H:%M:%S", tz = "Etc/GMT-1"),
+                        "' AND '",
+                        format(stop, "%Y-%m-%d %H:%M:%S", tz = "Etc/GMT-1"), "'")
+
       if (length(last) != 0) {
-        db_time <- paste0(" ORDER BY ts DESC LIMIT ", last)
+        db_time <- paste0(db_time," ORDER BY ts DESC LIMIT ", last)
       }
 
 
@@ -433,8 +427,8 @@ download_series <- function(meta_series, data_format,
                                 SELECT series_id, ts, value
                                 FROM data_dendro_lm
                                 WHERE series_id = ", meta_series$series_id[i]," ", db_time.LM, "
-                                UNION
                                 SELECT series_id, ts, value
+                                UNION ALL
                                 FROM ", db_table ,"
                                 WHERE series_id = ", meta_series$series_id[i]," ", db_time.L2, "
                                 ) l2m
@@ -450,8 +444,8 @@ download_series <- function(meta_series, data_format,
           foo <- sqldf::sqldf(paste0("SELECT * FROM (
                                      SELECT series_id, ts, value
                                       FROM data_dendro_lm WHERE series_id = ", meta_series$series_id[i]," ", db_time.LM, "
-                                     UNION
                                      SELECT series_id, ts, value
+                                     UNION ALL
                                       FROM ", db_table ," WHERE series_id = ", meta_series$series_id[i]," ", db_time.L2,
                                      ") l2m ",
                                      dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";"),
