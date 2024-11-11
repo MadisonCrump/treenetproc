@@ -459,7 +459,7 @@ download_series <- function(meta_series, data_format,
                             FROM (
                                 SELECT series_id, ts, value
                                 FROM ", db_table ,"
-                                WHERE series_id = ", meta_series$series_id[i]," AND", db_time, "
+                                WHERE series_id = ", meta_series$series_id[i]," AND ", db_time, "
                                 ) l
                             LEFT JOIN data_meteo_l2 ON l.ts = data_meteo_l2.ts
                                            AND l.series_id = ", meta_series$series_id[i],"
