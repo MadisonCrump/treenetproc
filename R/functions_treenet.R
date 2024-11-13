@@ -33,6 +33,7 @@ load_credentials <- function(path_cred = NULL) {
 #'   In addition, reference temperature data is selected for all dendrometer
 #'   series.
 #'
+#' @param series_id integer, specify the TreeNet series ID.
 #' @param measure_point character, specify the measure point. String is not case sensitive.
 #' @param site_name character, specify the site name. String is not case sensitive.
 #' @param sensor_class character, specify a single or multiple sensor
@@ -48,7 +49,7 @@ load_credentials <- function(path_cred = NULL) {
 #'
 #' @keywords internal, treenet
 #'
-select_series <- function(measure_point, site_name, sensor_class, sensor_name, path_cred) {
+select_series <- function(series_id, measure_point, site_name, sensor_class, sensor_name, path_cred) {
 
   # Check availability of packages --------------------------------------------
   check_package(pck_name = "config")
@@ -176,6 +177,24 @@ select_series <- function(measure_point, site_name, sensor_class, sensor_name, p
         # meta_airtemp <- unique(meta_sub$site_temp_ref)
       } else {
         meta_msg <- c(meta_msg, measure_point_sel[t])
+      }
+    }
+    if (length(meta_msg) > 0) warn_msg <- c(warn_msg, paste0("'", paste0(meta_msg, collapse = "', '"), "'"))
+    meta_filter <- meta_select
+  }
+    # series_id
+  if (!is.null(series_id)) {
+    series_id_sel <- as.integer(series_id)
+    meta_select       <- vector()
+    meta_msg          <- vector()
+    for (t in 1:length(series_id_sel)) {
+      meta_sub <- meta %>%
+        dplyr::filter(id %in% meta_filter) %>%
+        dplyr::filter(series_id_sel[t] == series_id)
+      if (nrow(meta_sub) != 0) {
+        meta_select <- c(meta_select, meta_sub$id)
+      } else {
+        meta_msg <- c(meta_msg, series_id_sel[t])
       }
     }
     if (length(meta_msg) > 0) warn_msg <- c(warn_msg, paste0("'", paste0(meta_msg, collapse = "', '"), "'"))
@@ -396,9 +415,9 @@ download_series <- function(meta_series, data_format,
           foo <- sqldf::sqldf(paste0("SELECT l.*, data_meteo_l2.*,
                             CASE WHEN data_meteo_l2.temp IS NULL THEN data_all_l1.value ELSE data_meteo_l2.temp END AS temperature
                             FROM (
-                                SELECT series_id, ts, value
+                                SELECT *
                                 FROM ", db_table ,"
-                                WHERE series_id = ", meta_series$series_id[i]," AND", db_time, "
+                                WHERE series_id = ", meta_series$series_id[i]," AND ", db_time, "
                                 ) l
                             LEFT JOIN data_meteo_l2 ON l.ts = data_meteo_l2.ts
                                            AND l.series_id = ", meta_series$series_id[i],"
@@ -409,7 +428,7 @@ download_series <- function(meta_series, data_format,
                               connection = con)
         } else {
         foo <- sqldf::sqldf(paste0("SELECT * FROM  ", db_table ,"
-                                   WHERE series_id = ", meta_series$series_id[i], " AND",
+                                   WHERE series_id = ", meta_series$series_id[i], " AND ",
                                    db_time, ";"), connection = con)
         }
       } else {
