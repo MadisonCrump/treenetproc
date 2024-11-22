@@ -437,17 +437,17 @@ download_series <- function(meta_series, data_format,
         if (length(from) == 0) from <- as.POSIXct("1970-01-01", format = "%Y-%m-%d", tz = "Etc/GMT-1")
         if (length(to)   == 0) to   <- as.POSIXct("2100-01-01", format = "%Y-%m-%d", tz = "Etc/GMT-1")
 
-        db_time.LM <-paste0(" AND ts > '", as.POSIXct(min(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND ts <= '", as.POSIXct(min(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
-        db_time.L2 <-paste0(" AND ts > '", as.POSIXct(max(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND ts <= '", as.POSIXct(max(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
+        db_time.LM <-paste0(" AND ts between '", as.POSIXct(min(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND '", as.POSIXct(min(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
+        db_time.L2 <-paste0(" AND ts between '", as.POSIXct(max(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND '", as.POSIXct(max(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
         if (meteo) {
           foo <- sqldf::sqldf(paste0("SELECT l2m.*, data_meteo_l2.*,
                             CASE WHEN data_meteo_l2.temp IS NULL THEN data_all_l1.value ELSE data_meteo_l2.temp END AS temperature
                             FROM (
-                                SELECT series_id, ts, value
+                                SELECT *
                                 FROM data_dendro_lm
                                 WHERE series_id = ", meta_series$series_id[i]," ", db_time.LM, "
-                                SELECT series_id, ts, value
                                 UNION ALL
+                                SELECT *
                                 FROM ", db_table ,"
                                 WHERE series_id = ", meta_series$series_id[i]," ", db_time.L2, "
                                 ) l2m
@@ -461,10 +461,10 @@ download_series <- function(meta_series, data_format,
 
         } else {
           foo <- sqldf::sqldf(paste0("SELECT * FROM (
-                                     SELECT series_id, ts, value
+                                     SELECT *
                                       FROM data_dendro_lm WHERE series_id = ", meta_series$series_id[i]," ", db_time.LM, "
-                                     SELECT series_id, ts, value
                                      UNION ALL
+                                     SELECT *
                                       FROM ", db_table ," WHERE series_id = ", meta_series$series_id[i]," ", db_time.L2,
                                      ") l2m ",
                                      dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";"),
@@ -476,7 +476,7 @@ download_series <- function(meta_series, data_format,
           foo <- sqldf::sqldf(paste0("SELECT l.*, data_meteo_l2.*,
                             CASE WHEN data_meteo_l2.temp IS NULL THEN data_all_l1.value ELSE data_meteo_l2.temp END AS temperature
                             FROM (
-                                SELECT series_id, ts, value
+                                SELECT *
                                 FROM ", db_table ,"
                                 WHERE series_id = ", meta_series$series_id[i]," AND ", db_time, "
                                 ) l
@@ -548,7 +548,7 @@ download_series <- function(meta_series, data_format,
   if (meteo) {
     server_data <- server_data %>%
       dplyr::mutate(temp=temperature) %>%
-      dplyr::select(-c("ts..4","site_id","temperature"))
+      dplyr::select(-c(contains(c("ts..","insert_date..","site_id","temperature"))))
   }
 
   # process with temperature data
