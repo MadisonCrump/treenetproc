@@ -313,7 +313,7 @@ download_series <- function(meta_series, data_format,
     if (data_format == "L1")    db_table  <- "data_all_l1"
     if (data_format == "L2")    db_table  <- "data_dendro_l2"
     if (data_format == "LM")    db_table  <- "data_dendro_lm"
-    if (data_format == "L2M") { db_table  <- "data_dendro_l2"; meteo <- T }
+    if (data_format == "L2M")   db_table  <- "data_dendro_l2"
   }
   if (meteo) bind_df <- T
   if (server == "decentlab") {
