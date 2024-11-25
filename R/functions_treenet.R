@@ -412,7 +412,7 @@ download_series <- function(meta_series, data_format,
       if (length(ts.max.LM) == 0 || is.na(ts.max.LM)) {
         message(paste0("There is no LM data available for ", meta_series$measure_point[i], ". Using L2 data."))
         if (meteo) {
-          foo <- sqldf::sqldf(paste0("SELECT l.ts, l.series_id, l.value, l.max, l.twd, l.gro_yr, l.gro_start, l.gro_end, l.frost, l.flags,
+          query <- paste0("SELECT l.ts, l.series_id, l.value, l.max, l.twd, l.gro_yr, l.gro_start, l.gro_end, l.frost, l.flags,
        data_meteo_l2.site_id, data_meteo_l2.temp, data_meteo_l2.rh, data_meteo_l2.swp, data_meteo_l2.total_precip, data_meteo_l2.rad, data_meteo_l2.vpd, data_meteo_l2.vpd_bo,
                             CASE WHEN data_meteo_l2.temp IS NULL THEN data_all_l1.value ELSE data_meteo_l2.temp END AS temperature
                             FROM (
@@ -425,12 +425,11 @@ download_series <- function(meta_series, data_format,
                                            AND data_meteo_l2.site_id = ", meta_series$site_id[i], "
                             LEFT JOIN data_all_l1 ON l.ts = data_all_l1.ts
                                            AND data_all_l1.series_id = ", meta_series$site_temp_ref[i],
-                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";"),
-                              connection = con)
+                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";")
         } else {
-        foo <- sqldf::sqldf(paste0("SELECT * FROM  ", db_table ,"
+        query <- paste0("SELECT * FROM  ", db_table ,"
                                    WHERE series_id = ", meta_series$series_id[i], " AND ",
-                                   db_time, ";"), connection = con)
+                                   db_time, ";")
         }
       } else {
         writeLines(paste0("Data from ", meta_series$measure_point[i], " is LM until ", format(ts.max.LM, "%Y-%m-%d %H:%M:%S"), " afterwhich it is L2."))
@@ -441,7 +440,7 @@ download_series <- function(meta_series, data_format,
         db_time.LM <-paste0(" AND ts between '", as.POSIXct(min(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND '", as.POSIXct(min(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
         db_time.L2 <-paste0(" AND ts between '", as.POSIXct(max(from, ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp AND '", as.POSIXct(max(to,ts.max.LM, na.rm = T), origin = "1970-01-01", tz = "Etc/GMT-1"), "'::timestamp")
         if (meteo) {
-          foo <- sqldf::sqldf(paste0("WITH l2m AS (
+          query <- paste0("WITH l2m AS (
                                 SELECT ts, series_id, value, max, twd, gro_yr, gro_start, gro_end, frost, flags
                                 FROM data_dendro_lm
                                 WHERE series_id = ", meta_series$series_id[i]," ", db_time.LM, "
@@ -459,24 +458,22 @@ download_series <- function(meta_series, data_format,
                                            AND data_meteo_l2.site_id = ", meta_series$site_id[i], "
                             LEFT JOIN data_all_l1 ON l2m.ts = data_all_l1.ts
                                            AND data_all_l1.series_id = ", meta_series$site_temp_ref[i],
-                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";"),
-                              connection = con)
+                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";")
 
         } else {
-          foo <- sqldf::sqldf(paste0("WITH l2m AS (
+          query <- paste0("WITH l2m AS (
                                      SELECT ts, series_id, value, max, twd, gro_yr, gro_start, gro_end, frost, flags
                                       FROM data_dendro_lm WHERE series_id = ", meta_series$series_id[i]," ", db_time.LM, "
                                      UNION ALL
                                      SELECT ts, series_id, value, max, twd, gro_yr, gro_start, gro_end, frost, flags
                                       FROM ", db_table ," WHERE series_id = ", meta_series$series_id[i]," ", db_time.L2,
                                      ") SELECT * FROM l2m ",
-                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";"),
-                              connection = con)
+                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";")
         }
       }
       } else {
         if (meteo) {
-          foo <- sqldf::sqldf(paste0("SELECT l.*, data_meteo_l2.*,
+          query <- paste0("SELECT l.*, data_meteo_l2.*,
                             CASE WHEN data_meteo_l2.temp IS NULL THEN data_all_l1.value ELSE data_meteo_l2.temp END AS temperature
                             FROM (
                                 SELECT *
@@ -488,15 +485,15 @@ download_series <- function(meta_series, data_format,
                                            AND data_meteo_l2.site_id = ", meta_series$site_id[i], "
                             LEFT JOIN data_all_l1 ON l.ts = data_all_l1.ts
                                            AND data_all_l1.series_id = ", meta_series$site_temp_ref[i],
-                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";"),
-                              connection = con)
+                                     dplyr::if_else(length(last) != 0, paste0(" WHERE ", db_time), ""), ";")
 
         } else {
-          foo <- sqldf::sqldf(paste0("SELECT * FROM ", db_table,
+          query <- paste0("SELECT * FROM ", db_table,
                                      " WHERE series_id = ", meta_series$series_id[i],
-                                     paste0(c("", db_version,  db_time), collapse = " AND "), ";"), connection = con)
+                                     paste0(c("", db_version,  db_time), collapse = " AND "), ";")
         }
       }
+      foo <- sqldf::sqldf(query,connection = con)
       invisible(DBI::dbDisconnect(con))
     }
     if (server == "decentlab") {
@@ -550,51 +547,51 @@ download_series <- function(meta_series, data_format,
 
   if (meteo) {
     server_data <- server_data %>%
-      dplyr::mutate(temp=temperature) #%>%
-      # dplyr::select(-c(contains(c("ts..","insert_date..","site_id","temperature"))))
+      dplyr::mutate(temp=temperature) %>%
+      dplyr::select(-c(contains(c("ts..","insert_date..","site_id","temperature"))))
   }
 
-  # process with temperature data
-  if (data_format == "L2M") {
-    # if (any(m_temp) & any(m_dendro)) {
-    temp.L1 <- try(proc_L1(server_data %>%
-                             dplyr::select(ts, series, value = temp))
-                   , silent=T)
-    if ("try-error" %in% class(temp.L1)) {
-      message("There are no temperature data available for this series")
-      temp.L1 <- NULL
-    }
-    # } else {
-    # temp.L1 <- NULL
-    # }
-
-    meta_series$tol_out [is.na(meta_series$tol_out)]  <- 10
-    meta_series$tol_jump[is.na(meta_series$tol_jump)] <- 50
-    meta_series$lowtemp [is.na(meta_series$lowtemp)]  <- 5
-
-    data.L2 <- proc_dendro_L2(
-      dendro_L1   = proc_L1(server_data %>% dplyr::select(ts, series, value)),
-      temp_L1     = temp.L1,
-      tol_out     = meta_series$tol_out [m_dendro],
-      tol_jump    = meta_series$tol_jump[m_dendro],
-      lowtemp     = meta_series$lowtemp [m_dendro],
-      plot        = F,
-      tz          = tz
-    )
-
-    # process growth start and end
-    grostartend <- grow_seas(data.L2, tol_seas = 0.05, agg_yearly = T, tz = tz)
-
-    # insert year
-    data.L2 <- data.L2 %>%
-      dplyr::mutate(year = strftime(ts, format = "%Y", tz = tz)) %>%
-      dplyr::mutate(year = as.numeric(year))
-
-    # join data
-    server_data <- data.L2 %>%
-      dplyr::full_join(server_data %>% dplyr::select(-c(value)), by=c("series","ts")) %>%
-      dplyr::full_join(grostartend, by=c("series","year"))
-  }
+  # # process with temperature data
+  # if (data_format == "L2M") {
+  #   # if (any(m_temp) & any(m_dendro)) {
+  #   temp.L1 <- try(proc_L1(server_data %>%
+  #                            dplyr::select(ts, series, value = temp))
+  #                  , silent=T)
+  #   if ("try-error" %in% class(temp.L1)) {
+  #     message("There are no temperature data available for this series")
+  #     temp.L1 <- NULL
+  #   }
+  #   # } else {
+  #   # temp.L1 <- NULL
+  #   # }
+  #
+  #   meta_series$tol_out [is.na(meta_series$tol_out)]  <- 10
+  #   meta_series$tol_jump[is.na(meta_series$tol_jump)] <- 50
+  #   meta_series$lowtemp [is.na(meta_series$lowtemp)]  <- 5
+  #
+  #   data.L2 <- proc_dendro_L2(
+  #     dendro_L1   = proc_L1(server_data %>% dplyr::select(ts, series, value)),
+  #     temp_L1     = temp.L1,
+  #     tol_out     = meta_series$tol_out [m_dendro],
+  #     tol_jump    = meta_series$tol_jump[m_dendro],
+  #     lowtemp     = meta_series$lowtemp [m_dendro],
+  #     plot        = F,
+  #     tz          = tz
+  #   )
+  #
+  #   # process growth start and end
+  #   grostartend <- grow_seas(data.L2, tol_seas = 0.05, agg_yearly = T, tz = tz)
+  #
+  #   # insert year
+  #   data.L2 <- data.L2 %>%
+  #     dplyr::mutate(year = strftime(ts, format = "%Y", tz = tz)) %>%
+  #     dplyr::mutate(year = as.numeric(year))
+  #
+  #   # join data
+  #   server_data <- data.L2 %>%
+  #     dplyr::full_join(server_data %>% dplyr::select(-c(value)), by=c("series","ts")) %>%
+  #     dplyr::full_join(grostartend, by=c("series","year"))
+  # }
   return(server_data)
 }
 
