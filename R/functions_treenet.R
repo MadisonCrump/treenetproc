@@ -473,7 +473,7 @@ download_series <- function(meta_series, data_format,
       }
       } else {
         if (meteo) {
-          query <- paste0("SELECT l.*, data_meteo_l2.*,
+          query <- paste0("SELECT l.*, data_meteo_l2.site_id, data_meteo_l2.temp, data_meteo_l2.rh, data_meteo_l2.swp, data_meteo_l2.total_precip, data_meteo_l2.rad, data_meteo_l2.vpd, data_meteo_l2.vpd_bo,
                             CASE WHEN data_meteo_l2.temp IS NULL THEN data_all_l1.value ELSE data_meteo_l2.temp END AS temperature
                             FROM (
                                 SELECT *
