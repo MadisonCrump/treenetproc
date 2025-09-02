@@ -47,16 +47,23 @@ check_ts <- function(df, date_format, tz) {
   }
 
   ts <- as.character(df$ts)
-  ts <- as.POSIXct(ts, format = date_format, tz = tz)
 
-  if (is.na(unique(ts)[1])) {
+  # Try parsing with provided date_format
+  ts_parsed <- as.POSIXct(ts, format = date_format, tz = tz)
+
+  # If parsing fails, try alternative format
+  if (all(is.na(ts_parsed))) {
+    alt_format <- if (date_format == "%Y-%m-%d %H:%M:%S") "%Y-%m-%d %H:%M:%S %z" else "%Y-%m-%d %H:%M:%S"
+    ts_parsed <- as.POSIXct(ts, format = alt_format, tz = tz)
+  }
+
+  if (all(is.na(ts_parsed))) {
     stop(paste("Date format in 'ts' not recognized. Please provide",
                "'ts' in a valid format or specify a custom format in",
                "'date_format'."))
   }
 
-  df$ts <- ts
-
+  df$ts <- ts_parsed
   return(df)
 }
 
