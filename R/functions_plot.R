@@ -241,6 +241,207 @@ plot_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
 }
 
 
+#' Plot Yearly Tree Water Deficit and Growth Curves with Print Variables
+#'
+#' \code{plot_twd_gro_yr_print_vars} plots yearly tree water deficit (twd) and
+#'   growth (gro_yr) curves for the whole period in separate plots and prints
+#'   the used input variables, applied thresholds, and data changes on a summary page.
+#'
+#' @inheritParams plot_proc_L2
+#'
+#' @keywords internal
+#'
+plot_twd_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
+
+  series_plot <- unique(data_plot$series)
+  # Increase height of info panel to accommodate larger text
+  graphics::layout(mat = matrix(c(1, 2, 3), nrow = 3),
+                   heights = c(3, 3, 4), widths = 1)
+
+  # Add day of year for plotting
+  data_plot <- data_plot %>%
+    dplyr::mutate(doy = as.numeric(strftime(ts, format = "%j", tz = tz)) - 1)
+
+  years <- unique(data_plot$year)
+  colors <- c("grey", grDevices::rainbow(length(years)))
+  data_year <- data_plot %>%
+    dplyr::group_by(year) %>%
+    dplyr::group_split()
+
+  # ============================================================================
+  # PLOT 1: Yearly TWD curves
+  # ============================================================================
+  graphics::par(mar = c(0.5, 4.1, 3, 2.1))
+
+  graphics::plot(data = data_plot, twd ~ doy, type = "n",
+                 main = passobj("sensor_label"),
+                 ylab = paste0("twd (", "\u00b5", "m)"),
+                 xlab = "", xlim = c(0, 365),
+                 ylim = c(0, max(data_plot$twd, na.rm = TRUE)), las = 1,
+                 xaxt = "n")
+
+  for (y in 1:length(years)) {
+    graphics::lines(data = data_year[[y]], twd ~ doy, col = colors[y])
+  }
+
+  # ============================================================================
+  # PLOT 2: Yearly growth curves
+  # ============================================================================
+  graphics::par(mar = c(0.5, 4.1, 0.5, 2.1))
+
+  graphics::plot(data = data_plot, gro_yr ~ doy, type = "n",
+                 ylab = paste0("gro_yr (", "\u00b5", "m)"),
+                 xlab = "day of year", xlim = c(0, 365),
+                 ylim = c(0, max(data_plot$gro_yr, na.rm = TRUE)), las = 1,
+                 xaxt = "n")
+
+  for (y in 1:length(years)) {
+    graphics::lines(data = data_year[[y]], gro_yr ~ doy, col = colors[y])
+  }
+  graphics::legend(x = "topleft", legend = years, col = colors, bty = "n",
+                   lty = 1, seg.len = 0.8, cex = 1, ncol = 2)
+
+  # ============================================================================
+  # PLOT 3: Print variables and threshold values
+  # ============================================================================
+  if (length(thr_plot) != 0) {
+    thr_print <- thr_plot %>%
+      dplyr::filter(series == series_plot)
+
+    graphics::par(mar = c(5.1, 4.1, 0.5, 2.1))
+
+    graphics::plot(x = c(0, 1), y = c(0, 1), ann = FALSE, bty = "n",
+                   type = "n", xaxt = "n", yaxt = "n")
+    # print input variables
+    graphics::text(x = 0, y = 1, adj = c(0, 1), font = 2, cex = 1,
+                   labels = "input variables")
+    graphics::text(x = 0, y = 0.97, adj = c(0, 1), cex = 1,
+                   labels = paste0("tol_jump = ",
+                                   passobj("tol_jump_plot"), "\n",
+                                   "tol_out = ",
+                                   passobj("tol_out_plot"), "\n",
+                                   "frost_thr = ",
+                                   passobj("frost_thr_plot"), "\n",
+                                   "lowtemp = ",
+                                   passobj("lowtemp_plot"), "\n",
+                                   "interpol = ",
+                                   passobj("interpol_plot"), "\n",
+                                   "frag_len = ",
+                                   passobj("frag_len_plot"), "\n",
+                                   "tz = ", passobj("tz_plot")))
+    # print applied thresholds and values
+    graphics::text(x = 0.3, y = 1, adj = c(0, 1), font = 2, cex = 1,
+                   labels = paste0("applied thresholds (", "\u00b5", "m)"))
+    graphics::text(x = 0.3, y = 0.97, adj = c(0, 1), cex = 1,
+                   labels = paste0("tol_jump = ",
+                                   thr_print$thr_jump_min, " / ",
+                                   thr_print$thr_jump_max, "\n",
+                                   "tol_out = ",
+                                   thr_print$thr_out_min, " / ",
+                                   thr_print$thr_out_max, "\n",
+                                   "tol_jump_frost = ",
+                                   thr_print$thr_jump_min *
+                                     passobj("frost_thr_plot"), " / ",
+                                   thr_print$thr_jump_max *
+                                     passobj("frost_thr_plot"), "\n",
+                                   "tol_out_frost = ",
+                                   thr_print$thr_out_min *
+                                     passobj("frost_thr_plot"), " / ",
+                                   thr_print$thr_out_max *
+                                     passobj("frost_thr_plot"), "\n"))
+    # print amount of missing, deleted and interpolated data
+    list_missing <- calcmissing(data_plot = data_plot)
+    graphics::text(x = 0.8, y = 1, adj = c(0, 1), font = 2, cex = 1,
+                   labels = "changes in data")
+    graphics::text(x = 0.8, y = 0.97, adj = c(0, 1), cex = 1,
+                   labels = paste0("interpolated: ", list_missing[[1]], "%\n",
+                                   "deleted: ", list_missing[[2]], "%\n",
+                                   "missing: ", list_missing[[3]], "%"))
+
+    # print twd statistics
+    graphics::text(x = 0, y = 0.7, adj = c(0, 1), font = 2, cex = 1,
+                   labels = paste0("twd statistics (", "\u00b5", "m)"))
+    twd_stats <- data_plot %>%
+      dplyr::summarise(
+        twd_med = round(stats::median(twd, na.rm = TRUE), 2),
+        twd_min = round(min(twd, na.rm = TRUE), 2),
+        twd_max = round(max(twd, na.rm = TRUE), 2)
+      )
+    graphics::text(x = 0, y = 0.67, adj = c(0, 1), cex = 1,
+                   labels = paste0("median: ", twd_stats$twd_med, " (",
+                                   twd_stats$twd_min, " / ",
+                                   twd_stats$twd_max, ")"))
+
+
+
+  # print growth values for different periods
+    gro_period <- calcgroperiods(df = data_plot, reso = passobj("reso"),
+                                 tz = tz)
+    if (length(gro_period) > 0) {
+      graphics::text(x = 0.3, y = 0.7, adj = c(0, 1), font = 2, cex = 1,
+                     labels = paste0("growth statistics (", "\u00b5",
+                                     "m): median (min / max)"))
+      for (r in 1:nrow(gro_period)) {
+        gro_period_single <- gro_period[r, ]
+        graphics::text(x = 0.3, y = 0.7 - 0.03 * r, adj = c(0, 1), cex = 1,
+                       labels = paste0(gro_period_single$period, ": ",
+                                       gro_period_single$gro_med, " (",
+                                       gro_period_single$gro_min, " / ",
+                                       gro_period_single$gro_max, ")"))
+      }
+    }
+
+    # print package version
+    version_pck <- utils::packageDescription("treenetproc",
+                                             fields = "Version", drop = TRUE)
+    graphics::text(x = 1, y = 0.4, adj = c(1, 1), cex = 1,
+                   labels = paste0("treenetproc: ", version_pck))
+  } else {
+    # If no threshold plot, just show minimal info
+    graphics::par(mar = c(5.1, 4.1, 0.5, 2.1))
+    graphics::plot(x = c(0, 1), y = c(0, 1), ann = FALSE, bty = "n",
+                   type = "n", xaxt = "n", yaxt = "n")
+
+    # print twd statistics
+    graphics::text(x = 0, y = 0.8, adj = c(0, 1), font = 2, cex = 1,
+                   labels = paste0("twd statistics (", "\u00b5", "m)"))
+    twd_stats <- data_plot %>%
+      dplyr::summarise(
+        twd_med = round(stats::median(twd, na.rm = TRUE), 2),
+        twd_min = round(min(twd, na.rm = TRUE), 2),
+        twd_max = round(max(twd, na.rm = TRUE), 2)
+      )
+    graphics::text(x = 0, y = 0.77, adj = c(0, 1), cex = 1,
+                   labels = paste0("median: ", twd_stats$twd_med, " (",
+                                   twd_stats$twd_min, " / ",
+                                   twd_stats$twd_max, ")"))
+
+    # print growth statistics
+    graphics::text(x = 0.3, y = 0.8, adj = c(0, 1), font = 2, cex = 1,
+                     labels = paste0("growth statistics (", "\u00b5",
+                                     "m): median (min / max)"))
+    gro_period <- calcgroperiods(df = data_plot, reso = passobj("reso"),
+                                 tz = tz)
+    if (length(gro_period) > 0) {
+      for (r in 1:nrow(gro_period)) {
+        gro_period_single <- gro_period[r, ]
+        graphics::text(x = 0.3, y = 0.77 - 0.03 * r, adj = c(0, 1), cex = 1,
+                       labels = paste0(gro_period_single$period, ": ",
+                                       gro_period_single$gro_med, " (",
+                                       gro_period_single$gro_min, " / ",
+                                       gro_period_single$gro_max, ")"))
+      }
+    }
+
+    # print package version
+    version_pck <- utils::packageDescription("treenetproc",
+                                             fields = "Version", drop = TRUE)
+    graphics::text(x = 1, y = 0.4, adj = c(1, 1), cex = 1,
+                   labels = paste0("treenetproc: ", version_pck))
+  }
+}
+
+
 #' Plot Frost Period
 #'
 #' \code{plot_frost_period} draws a horizontal line in periods of possible

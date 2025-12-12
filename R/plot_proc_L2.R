@@ -245,8 +245,8 @@ plot_proc_L2 <- function(dendro_L1, dendro_L2, plot_period = "full",
       }
     }
 
-    # Plot yearly growth and print variables  ---------------------------------
-    plot_gro_yr_print_vars(data_plot = diff_sensor, thr_plot = thr_plot,
+    # Plot tree water deficit, yearly growth and print variables  ---------------------------------
+    plot_twd_gro_yr_print_vars(data_plot = diff_sensor, thr_plot = thr_plot,
                            tz = tz)
   }
   if (plot_export) {
