@@ -145,10 +145,10 @@ plot_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
     dplyr::mutate(doy = as.numeric(strftime(ts, format = "%j", tz = tz)) - 1)
 
   graphics::plot(data = data_plot, gro_yr ~ doy, type = "n",
-                 main = passobj("sensor_label"), ylab = paste0("gro_yr (",
-                                                               "\u00b5", "m)"),
-                 xlab = "day of year", xlim = c(0, 365),
-                 ylim = c(0, max(data_plot$gro_yr, na.rm = TRUE)), las = 1)
+                 ylab = paste0("gro_yr (", "\u00b5", "m)"),
+                 xlab = "DOY", xlim = c(0, 365),
+                 ylim = c(0, max(data_plot$gro_yr, na.rm = TRUE)), las = 1,
+                 xaxt = "n")
 
   years <- unique(data_plot$year)
   colors <- c("grey", grDevices::rainbow(length(years)))
@@ -158,9 +158,8 @@ plot_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
   for (y in 1:length(years)) {
     graphics::lines(data = data_year[[y]], gro_yr ~ doy, col = colors[y])
   }
-  graphics::legend(x = "topleft", legend = years, col = colors, bty = "n",
-                   lty = 1, seg.len = 0.8, cex=1, ncol=2)
-
+  # add DOY axis ticks
+  graphics::axis(1, at = seq(0, 360, by = 30), labels = seq(0, 360, by = 30))
 
   # print used variables and threshold values
   if (length(thr_plot) != 0) {
@@ -271,11 +270,11 @@ plot_twd_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
   # ============================================================================
   # PLOT 1: Yearly TWD curves
   # ============================================================================
-  graphics::par(mar = c(0.5, 4.1, 3, 2.1))
+  graphics::par(mar = c(0.8, 4.1, 3, 2.1))
 
   graphics::plot(data = data_plot, twd ~ doy, type = "n",
                  main = passobj("sensor_label"),
-                 ylab = paste0("twd (", "\u00b5", "m)"),
+                 ylab = paste0("TWD [", "\u00b5", "m]"),
                  xlab = "", xlim = c(0, 365),
                  ylim = c(0, max(data_plot$twd, na.rm = TRUE)), las = 1,
                  xaxt = "n")
@@ -287,17 +286,20 @@ plot_twd_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
   # ============================================================================
   # PLOT 2: Yearly growth curves
   # ============================================================================
-  graphics::par(mar = c(0.5, 4.1, 0.5, 2.1))
+  graphics::par(mar = c(4.1, 4.1, 0.5, 2.1))
 
   graphics::plot(data = data_plot, gro_yr ~ doy, type = "n",
-                 ylab = paste0("gro_yr (", "\u00b5", "m)"),
-                 xlab = "day of year", xlim = c(0, 365),
+                 ylab = paste0("GROW [", "\u00b5", "m]"),
+                 xlab = "DOY", xlim = c(0, 365),
                  ylim = c(0, max(data_plot$gro_yr, na.rm = TRUE)), las = 1,
                  xaxt = "n")
 
   for (y in 1:length(years)) {
     graphics::lines(data = data_year[[y]], gro_yr ~ doy, col = colors[y])
   }
+  # add DOY axis ticks and label
+  graphics::axis(1, at = seq(0, 360, by = 30), labels = seq(0, 360, by = 30))
+
   graphics::legend(x = "topleft", legend = years, col = colors, bty = "n",
                    lty = 1, seg.len = 0.8, cex = 1, ncol = 2)
 
