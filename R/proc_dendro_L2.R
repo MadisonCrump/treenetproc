@@ -323,7 +323,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = list(), reso = 10,
     # Timestamp marking the true start of new L1 data (used to strip stub row)
     first_ts_new <- min(
       df_L1 %>%
-        dplyr::filter(series == series_vec[s]) %>%
+        dplyr::filter(series_id == series_vec[s]) %>%
         dplyr::pull(ts) %>%
         .[!is.na(.)],
       na.rm = TRUE
