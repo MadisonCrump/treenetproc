@@ -289,7 +289,7 @@ plot_twd_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
   graphics::par(mar = c(4.1, 4.1, 0.5, 2.1))
 
   graphics::plot(data = data_plot, gro_yr ~ doy, type = "n",
-                 ylab = paste0("GROW [", "\u00b5", "m]"),
+                 ylab = paste0("GRO [", "\u00b5", "m]"),
                  xlab = "DOY", xlim = c(0, 365),
                  ylim = c(0, max(data_plot$gro_yr, na.rm = TRUE)), las = 1,
                  xaxt = "n")
