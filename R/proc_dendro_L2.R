@@ -36,6 +36,23 @@
 #'   process is repeated. Can be used to check whether running the cleaning
 #'   process multiple times has an effect on the results. In most cases, a
 #'   single iteration is sufficient.
+#' @param prev_L2 \code{data.frame} of previously processed L2 dendrometer
+#'   data (output of a prior call to \code{proc_dendro_L2}), used to
+#'   correctly anchor \code{max} and \code{gro_yr} when processing an
+#'   incremental update. The function determines which rows of
+#'   \code{prev_L2} fall within the reprocessing window (controlled by
+#'   \code{prev_L2_reprocess_days}) and re-cleans them together with the
+#'   new \code{dendro_L1} data, then prepends the remaining unchanged
+#'   \code{prev_L2} rows so the returned \code{data.frame} covers the
+#'   full time series. Defaults to \code{NULL} (standard behaviour).
+#' @param prev_L2_reprocess_days numeric, number of days from the end of
+#'   \code{prev_L2} to include in re-cleaning together with the new
+#'   \code{dendro_L1} data. Set to \code{0} to skip reprocessing entirely
+#'   (the new data is simply appended after anchoring \code{max} and
+#'   \code{gro_yr} from the last \code{prev_L2} row). The default
+#'   (\code{NULL}) reprocesses the entire \code{prev_L2} together with
+#'   the new data, which gives the most thorough cleaning but is slowest.
+#'   Only used when \code{prev_L2} is supplied. Defaults to \code{NULL}.
 #' @inheritParams proc_L1
 #' @inheritParams plot_proc_L2
 #'
@@ -78,6 +95,10 @@
 #'      \href{../doc/Introduction-to-treenetproc.html}{\code{vignette("Introduction-to-treenetproc", package = "treenetproc")}}}
 #'    \item{version}{package version number.}
 #'
+#'   When \code{prev_L2} is supplied, the returned \code{data.frame} covers
+#'   the full time series (unchanged \code{prev_L2} prefix + reprocessed/new
+#'   rows), ready to replace the database table.
+#'
 #' @export
 #'
 #' @references Knüsel S., Haeni M., Wilhelm M., Peters R.L., Zweifel R. 2020.
@@ -95,11 +116,32 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
                            plot = TRUE, plot_period = "full",
                            plot_show = "all", plot_export = TRUE,
                            plot_name = "proc_L2_plot",
-                           iter_clean = 1, tz = "Etc/GMT-1") {
+                           iter_clean = 1, tz = "Etc/GMT-1",
+                           prev_L2 = NULL,
+                           prev_L2_reprocess_days = NULL) {
 
   # Check input variables -----------------------------------------------------
   list_inputs <- mget(ls())
   check_input_variables(list = list_inputs)
+
+
+  # Validate prev_L2 / prev_L2_reprocess_days ---------------------------------
+  if (!is.null(prev_L2)) {
+    required_cols <- c("series", "ts", "value", "max", "twd", "gro_yr")
+    if (!all(required_cols %in% colnames(prev_L2))) {
+      stop("'prev_L2' must contain columns: ",
+           paste(required_cols, collapse = ", "))
+    }
+    if (!inherits(prev_L2$ts, "POSIXct")) {
+      prev_L2$ts <- as.POSIXct(prev_L2$ts, tz = tz)
+    }
+    if (!is.null(prev_L2_reprocess_days) &&
+        (!is.numeric(prev_L2_reprocess_days) ||
+         length(prev_L2_reprocess_days) != 1 ||
+         prev_L2_reprocess_days < 0)) {
+      stop("'prev_L2_reprocess_days' must be a single non-negative number.")
+    }
+  }
 
 
   # Save input variables for plotting -----------------------------------------
@@ -197,6 +239,97 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
       next
     }
 
+    # Determine prev_L2 context for this series --------------------------------
+    prev_unchanged <- NULL   # rows of prev_L2 NOT re-cleaned (prepended later)
+    prev_anchor    <- NULL   # single anchor row just before the reprocess window
+    reprocess_from_ts <- NULL
+
+    if (!is.null(prev_L2)) {
+      first_ts_new <- min(df$ts[!is.na(df$value)], na.rm = TRUE)
+
+      prev_series_all <- prev_L2 %>%
+        dplyr::filter(series == series_vec[s], !is.na(value)) %>%
+        dplyr::arrange(ts)
+
+      if (nrow(prev_series_all) > 0) {
+
+        # Determine the start of the reprocessing window ----------------------
+        if (is.null(prev_L2_reprocess_days)) {
+          # Reprocess everything in prev_L2
+          reprocess_from_ts <- min(prev_series_all$ts)
+        } else if (prev_L2_reprocess_days == 0) {
+          # Append only: no prev_L2 rows are reprocessed
+          reprocess_from_ts <- first_ts_new
+        } else {
+          last_prev_ts <- max(prev_series_all$ts)
+          reprocess_from_ts <- last_prev_ts -
+            as.difftime(prev_L2_reprocess_days, units = "days")
+        }
+
+        # Rows before the window: kept unchanged
+        prev_unchanged <- prev_L2 %>%
+          dplyr::filter(series == series_vec[s],
+                        ts < reprocess_from_ts) %>%
+          dplyr::arrange(ts)
+
+        # Single anchor: last unchanged row (provides max / gro_yr baseline)
+        if (nrow(prev_unchanged) > 0) {
+          prev_anchor <- prev_unchanged %>%
+            dplyr::filter(!is.na(value)) %>%
+            dplyr::slice_tail(n = 1)
+        }
+
+        # Rows inside the window that need to be re-cleaned: convert back to L1
+        # format (keep only columns present in df, drop derived L2 columns)
+        prev_reprocess <- prev_L2 %>%
+          dplyr::filter(series == series_vec[s],
+                        ts >= reprocess_from_ts,
+                        ts < first_ts_new) %>%
+          dplyr::arrange(ts)
+
+        if (nrow(prev_reprocess) > 0) {
+          shared_cols <- intersect(colnames(df), colnames(prev_reprocess))
+          extra_cols  <- setdiff(colnames(df), colnames(prev_reprocess))
+          prev_reprocess <- prev_reprocess %>%
+            dplyr::select(dplyr::all_of(shared_cols))
+          for (col in extra_cols) {
+            prev_reprocess[[col]] <- NA
+          }
+          prev_reprocess <- prev_reprocess[, colnames(df)]
+          df <- dplyr::bind_rows(prev_reprocess, df)
+        }
+
+        # If append-only (prev_L2_reprocess_days == 0), prepend a single stub
+        # row (the last non-NA prev_L2 row) just for boundary jump detection,
+        # and record it so we can remove it again after cleaning.
+        if (!is.null(prev_L2_reprocess_days) && prev_L2_reprocess_days == 0) {
+          anchor_row <- prev_series_all %>%
+            dplyr::filter(ts < first_ts_new) %>%
+            dplyr::slice_tail(n = 1)
+          if (nrow(anchor_row) > 0) {
+            stub <- anchor_row %>%
+              dplyr::select(series, ts, value)
+            shared_cols <- intersect(colnames(df), colnames(stub))
+            extra_cols  <- setdiff(colnames(df), colnames(stub))
+            stub <- stub %>%
+              dplyr::select(dplyr::all_of(shared_cols))
+            for (col in extra_cols) stub[[col]] <- NA
+            stub <- stub[, colnames(df)]
+            df <- dplyr::bind_rows(stub, df)
+          }
+        }
+      }
+    }
+
+    # Timestamp marking the true start of new L1 data (used to strip stub row)
+    first_ts_new <- min(
+      df_L1 %>%
+        dplyr::filter(series == series_vec[s]) %>%
+        dplyr::pull(ts) %>%
+        .[!is.na(.)],
+      na.rm = TRUE
+    )
+
     # remove leading and trailing NA's
     na_list <- remove_lead_trail_na(df = df)
     df <- na_list[[1]]
@@ -231,24 +364,74 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
     }
     df <- clean_list[[iter_clean + 1]]
 
+    # If append-only: remove the prepended stub row ---------------------------
+    if (!is.null(prev_L2) &&
+        !is.null(prev_L2_reprocess_days) &&
+        prev_L2_reprocess_days == 0) {
+      df <- df %>%
+        dplyr::filter(ts >= first_ts_new)
+    }
+
     df <- fillintergaps(df = df, reso = passobj("reso"),
                         interpol = interpol, type = "linear", flag = TRUE)
     df <- calcmax(df = df)
     df <- calctwdgro(df = df, tz = tz)
     df <- summariseflags(df = df)
 
+    # Re-anchor max and gro_yr using the last unchanged prev_L2 row -----------
+    if (!is.null(prev_anchor) && nrow(prev_anchor) > 0) {
+      prev_max  <- prev_anchor$max
+      prev_gro  <- prev_anchor$gro_yr
+      prev_val  <- prev_anchor$value
+
+      first_new_val <- df$value[which(!is.na(df$value))[1]]
+      val_offset    <- prev_val - first_new_val
+
+      df <- df %>%
+        dplyr::mutate(
+          value = ifelse(!is.na(value), value + val_offset, value),
+          max   = ifelse(!is.na(max),   pmax(max + val_offset, prev_max), max),
+          twd   = ifelse(!is.na(value), abs(value - max), twd)
+        )
+
+      anchor_year <- format(prev_anchor$ts, "%Y")
+      df <- df %>%
+        dplyr::mutate(
+          year_ts = format(ts, "%Y"),
+          gro_yr  = dplyr::case_when(
+            is.na(gro_yr)          ~ NA_real_,
+            year_ts == anchor_year ~ gro_yr + prev_gro,
+            TRUE                   ~ gro_yr
+          )
+        ) %>%
+        dplyr::select(-year_ts)
+    }
+
     # append leading and trailing NA's
     df <- append_lead_trail_na(df = df, na = lead_trail_na)
 
     df <- df %>%
       dplyr::mutate(gro_yr = ifelse(is.na(value), NA, gro_yr)) %>%
-      dplyr::mutate(twd = ifelse(is.na(value), NA, twd)) %>%
-      dplyr::mutate(max = ifelse(is.na(value), NA, max)) %>%
-      dplyr::mutate(frost = ifelse(is.na(value), NA, frost)) %>%
+      dplyr::mutate(twd    = ifelse(is.na(value), NA, twd)) %>%
+      dplyr::mutate(max    = ifelse(is.na(value), NA, max)) %>%
+      dplyr::mutate(frost  = ifelse(is.na(value), NA, frost)) %>%
       dplyr::select(series, ts, value, max, twd, gro_yr, frost, flags) %>%
       dplyr::mutate(
         version = utils::packageDescription("treenetproc",
                                             fields = "Version", drop = TRUE))
+
+    # Prepend the unchanged prev_L2 prefix ------------------------------------
+    if (!is.null(prev_unchanged) && nrow(prev_unchanged) > 0) {
+      prev_unchanged_out <- prev_unchanged %>%
+        dplyr::select(dplyr::any_of(colnames(df)))
+      # ensure version column exists
+      if (!"version" %in% colnames(prev_unchanged_out)) {
+        prev_unchanged_out <- prev_unchanged_out %>%
+          dplyr::mutate(version = utils::packageDescription(
+            "treenetproc", fields = "Version", drop = TRUE))
+      }
+      df <- dplyr::bind_rows(prev_unchanged_out, df)
+    }
 
     list_L2[[s]] <- df
 
