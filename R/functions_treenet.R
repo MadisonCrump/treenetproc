@@ -500,8 +500,8 @@ download_series <- function(meta_series, data_format,
       series_single <- meta_series$sensor_name[i]
       foo <- get_decentlab(series_single = series_single,
                            path_cred = path_cred, tz = tz) %>%
-        dplyr::select(series = uqk, ts = time, value) %>%
-        transform(series = as.character(series))
+        dplyr::select(series_id = uqk, ts = time, value) %>%
+        transform(series_id = as.character(series_id))
     }
 
     df <- foo %>%
@@ -589,8 +589,8 @@ download_series <- function(meta_series, data_format,
   #
   #   # join data
   #   server_data <- data.L2 %>%
-  #     dplyr::full_join(server_data %>% dplyr::select(-c(value)), by=c("series","ts")) %>%
-  #     dplyr::full_join(grostartend, by=c("series","year"))
+  #     dplyr::full_join(server_data %>% dplyr::select(-c(value)), by=c("series_id","ts")) %>%
+  #     dplyr::full_join(grostartend, by=c("series_id","year"))
   # }
   return(server_data)
 }

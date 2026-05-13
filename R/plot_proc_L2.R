@@ -74,7 +74,7 @@ plot_proc_L2 <- function(dendro_L1, dendro_L2, plot_period = "full",
   df_L1 <- data_L1 %>%
     dplyr::mutate(year = strftime(ts, format = "%Y", tz = tz)) %>%
     dplyr::mutate(month = strftime(ts, format = "%m", tz = tz)) %>%
-    dplyr::group_by(series) %>%
+    dplyr::group_by(series_id) %>%
     dplyr::mutate(diff_L1 = c(NA, diff(value, lag = 1))) %>%
     dplyr::ungroup() %>%
     dplyr::rename(value_L1 = value) %>%
@@ -82,14 +82,14 @@ plot_proc_L2 <- function(dendro_L1, dendro_L2, plot_period = "full",
   df_L2 <- data_L2 %>%
     dplyr::mutate(year = strftime(ts, format = "%Y", tz = tz)) %>%
     dplyr::mutate(month = strftime(ts, format = "%m", tz = tz)) %>%
-    dplyr::group_by(series) %>%
+    dplyr::group_by(series_id) %>%
     dplyr::mutate(diff_L2 = c(NA, diff(value, lag = 1))) %>%
     dplyr::ungroup() %>%
     dplyr::rename(value_L2 = value) %>%
     dplyr::select_if(!(names(.) %in% "version"))
-  df <- dplyr::full_join(df_L1, df_L2, by = c("ts", "series", "year", "month"))
+  df <- dplyr::full_join(df_L1, df_L2, by = c("ts", "series_id", "year", "month"))
 
-  sensors <- unique(df$series)
+  sensors <- unique(df$series_id)
   years <- unique(df$year)
 
   if (plot_export) {
@@ -99,7 +99,7 @@ plot_proc_L2 <- function(dendro_L1, dendro_L2, plot_period = "full",
     sensor_label <- sensors[s]
     passenv$sensor_label <- sensor_label
     df_sensor <- df %>%
-      dplyr::filter(series == sensor_label)
+      dplyr::filter(series_id == sensor_label)
 
     diff_sensor <- df_sensor %>%
       dplyr::mutate(diff = diff_L1 - diff_L2) %>%
@@ -202,11 +202,11 @@ plot_proc_L2 <- function(dendro_L1, dendro_L2, plot_period = "full",
                 dplyr::group_by(year, month, day) %>%
                 dplyr::slice(ceiling(dplyr::n() / 2)) %>%
                 dplyr::ungroup() %>%
-                dplyr::select(series, ts, diff_nr, diff_nr_old)
+                dplyr::select(series_id, ts, diff_nr, diff_nr_old)
 
               df_month <- df_month %>%
                 dplyr::select(-diff_nr, -diff_nr_old) %>%
-                dplyr::full_join(., diff_month, by = c("series", "ts"))
+                dplyr::full_join(., diff_month, by = c("series_id", "ts"))
             }
 
             if (sum(!is.na(df_month$value_L1)) != 0 &

@@ -56,21 +56,21 @@ corr_dendro_L2 <- function(dendro_L1 = NULL, dendro_L2, reverse = NULL,
   check_series(df = dendro_L2, series = series)
 
   series_select <- series
-  n_series <- length(unique(dendro_L2$series))
+  n_series <- length(unique(dendro_L2$series_id))
 
   if (length(dendro_L1) != 0 && length(series_select) != 0) {
     dendro_L1 <- dendro_L1 %>%
-      dplyr::filter(series == series_select)
+      dplyr::filter(series_id == series_select)
   }
   if (length(series_select) != 0) {
     df <- dendro_L2 %>%
-      dplyr::filter(series == series_select)
+      dplyr::filter(series_id == series_select)
   } else {
     df <- dendro_L2
   }
   if (n_series > 1) {
     data_L2_append <- dendro_L2 %>%
-      dplyr::filter(series != series_select)
+      dplyr::filter(series_id != series_select)
   }
 
 
@@ -138,7 +138,7 @@ corr_dendro_L2 <- function(dendro_L1 = NULL, dendro_L2, reverse = NULL,
     dplyr::mutate(gro_yr = ifelse(is.na(value), NA, gro_yr)) %>%
     dplyr::mutate(twd = ifelse(is.na(value), NA, twd)) %>%
     dplyr::mutate(max = ifelse(is.na(value), NA, max)) %>%
-    dplyr::select(series, ts, value, max, twd, gro_yr, frost, flags) %>%
+    dplyr::select(series_id, ts, value, max, twd, gro_yr, frost, flags) %>%
     dplyr::mutate(
       version = utils::packageDescription("treenetproc",
                                           fields = "Version", drop = TRUE))

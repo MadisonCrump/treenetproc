@@ -29,20 +29,20 @@ corr_dendro_L1 <- function(dendro_L1, delete, series = NULL, plot = TRUE,
   check_series(df = dendro_L1, series = series)
 
   series_select <- series
-  n_series <- length(unique(dendro_L1$series))
+  n_series <- length(unique(dendro_L1$series_id))
 
   if (length(series_select) != 0) {
     df <- dendro_L1 %>%
-      dplyr::filter(series == series_select)
+      dplyr::filter(series_id == series_select)
     data_L1_orig <- dendro_L1 %>%
-      dplyr::filter(series == series_select)
+      dplyr::filter(series_id == series_select)
   } else {
     df <- dendro_L1
     data_L1_orig <- dendro_L1
   }
   if (n_series > 1) {
     data_L1_append <- dendro_L1 %>%
-      dplyr::filter(series != series_select)
+      dplyr::filter(series_id != series_select)
   }
 
 

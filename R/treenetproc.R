@@ -29,7 +29,7 @@
 #' @name treenetproc
 NULL
 
-utils::globalVariables(c("series", "ts", "value", "version", "max", "twd",
+utils::globalVariables(c("series_id", "ts", "value", "version", "max", "twd",
                          "gro_yr", "frost", "flags", ".", ":=",
                          "Sensor_class", "Sensor_query", "Seriesname",
                          "Site", "Site_temp_ref", "amp", "cons", "cons_nr",

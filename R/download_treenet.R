@@ -73,7 +73,7 @@ download_treenet <- function(series_id = NULL, measure_point = NULL, site_name =
 
       if (nrow(df) >= 2) {
         df <- tsalign(df = df, reso = 10, year = "asis", tz = tz) %>%
-          dplyr::mutate(series = fill_na(series))
+          dplyr::mutate(series_id = fill_na(series_id))
       }
 
       list_align[[s]] <- df
@@ -97,7 +97,7 @@ download_treenet <- function(series_id = NULL, measure_point = NULL, site_name =
 
   if (bind_df) {
     df_out <- dplyr::bind_rows(list_server) %>%
-      dplyr::arrange(series, ts)
+      dplyr::arrange(series_id, ts)
 
     writeLines("Done!")
     return(df_out)

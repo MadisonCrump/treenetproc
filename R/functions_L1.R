@@ -14,7 +14,7 @@
 #'
 tsalign <- function(df, reso, year, tz) {
 
-  series <- unique(df$series)
+  series <- unique(df$series_id)
 
   out_generatets <- generatets(df = df, reso = reso, year = year, tz = tz)
   df <- out_generatets[[1]]
@@ -30,9 +30,9 @@ tsalign <- function(df, reso, year, tz) {
 
   df <- df %>%
     dplyr::left_join(ts_seq, ., by = "ts") %>%
-    dplyr::arrange(series, ts) %>%
+    dplyr::arrange(series_id, ts) %>%
     dplyr::distinct() %>%
-    dplyr::mutate(series = series)
+    dplyr::mutate(series_id = series)
 
   if (length(grep("prec", series, ignore.case = T)) > 0) {
     prec_sum_proc <- sum(df$value, na.rm = T)

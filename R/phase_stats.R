@@ -65,7 +65,7 @@
 #' # Subset dataset for example
 #' library(dplyr)
 #' data_L2 <- dendro_data_L2 %>%
-#'    filter(series == "site-1_dendro-2")
+#'    filter(series_id == "site-1_dendro-2")
 #'
 #' phase_stats(dendro_L2 = data_L2, plot_phase = TRUE, plot_export = FALSE)
 #'
@@ -94,13 +94,13 @@ phase_stats <- function(dendro_L2, phase_wnd = 8, plot_phase = FALSE,
       dplyr::select_if(!grepl("phase|shrink|exp", colnames(.)))
   }
 
-  series_vec <- unique(df$series)
+  series_vec <- unique(df$series_id)
   list_phase <- vector("list", length = length(series_vec))
   df_phase <- df
   for (s in 1:length(series_vec)) {
     message(paste0("calculating phase statistics for ", series_vec[s], "..."))
     df <- df_phase %>%
-      dplyr::filter(series == series_vec[s])
+      dplyr::filter(series_id == series_vec[s])
 
     maxmin1 <- findmaxmin(df = df, phase_wnd = phase_wnd, reso = reso, st = 1)
     maxmin2 <- findmaxmin(df = df, phase_wnd = phase_wnd, reso = reso, st = 2)
@@ -214,8 +214,8 @@ phase_stats <- function(dendro_L2, phase_wnd = 8, plot_phase = FALSE,
       dplyr::ungroup() %>%
       dplyr::filter(!(is.na(shrink_start) & is.na(exp_start))) %>%
       dplyr::arrange(day) %>%
-      dplyr::mutate(series = series_vec[s]) %>%
-      dplyr::select(series, day, doy, shrink_start, shrink_end, shrink_dur,
+      dplyr::mutate(series_id = series_vec[s]) %>%
+      dplyr::select(series_id, day, doy, shrink_start, shrink_end, shrink_dur,
                     shrink_amp, shrink_slope, exp_start, exp_end, exp_dur,
                     exp_amp, exp_slope, phase_class)
 
@@ -232,25 +232,25 @@ phase_stats <- function(dendro_L2, phase_wnd = 8, plot_phase = FALSE,
   if (!agg_daily) {
   # merge phases with df
   shrink <- phase %>%
-    dplyr::select(series, shrink_start, shrink_end, shrink_dur, shrink_amp,
+    dplyr::select(series_id, shrink_start, shrink_end, shrink_dur, shrink_amp,
                   shrink_slope) %>%
     dplyr::mutate(ts = shrink_end) %>%
     dplyr::filter(!is.na(shrink_start))
 
   exp <- phase %>%
-    dplyr::select(series, exp_start, exp_end, exp_dur, exp_amp, exp_slope) %>%
+    dplyr::select(series_id, exp_start, exp_end, exp_dur, exp_amp, exp_slope) %>%
     dplyr::mutate(ts = exp_end) %>%
     dplyr::filter(!is.na(exp_start))
 
   phase_class <- phase %>%
-    dplyr::select(series, day, phase_class) %>%
-    dplyr::select(series, ts = day, phase_class) %>%
+    dplyr::select(series_id, day, phase_class) %>%
+    dplyr::select(series_id, ts = day, phase_class) %>%
     dplyr::distinct()
 
-  phase <- dplyr::left_join(df, shrink, by = c("series", "ts")) %>%
-    dplyr::left_join(., exp, by = c("series", "ts")) %>%
-    dplyr::left_join(., phase_class, by = c("series", "ts")) %>%
-    dplyr::arrange(series, ts)
+  phase <- dplyr::left_join(df, shrink, by = c("series_id", "ts")) %>%
+    dplyr::left_join(., exp, by = c("series_id", "ts")) %>%
+    dplyr::left_join(., phase_class, by = c("series_id", "ts")) %>%
+    dplyr::arrange(series_id, ts)
   }
 
   return(phase)

@@ -169,7 +169,7 @@ createfrostflag <- function(df, tem, lowtemp = 5, sample_temp) {
   temp_series <- df$temp_ref[1]
 
   df_frost <- tem %>%
-    dplyr::filter(series == temp_series) %>%
+    dplyr::filter(series_id == temp_series) %>%
     dplyr::mutate(frost = ifelse(value < lowtemp, TRUE, FALSE)) %>%
     dplyr::select(ts, frost) %>%
     dplyr::right_join(., df, by = "ts") %>%
@@ -477,7 +477,7 @@ executeflagout <- function(df, len, frag_len, plot_density = FALSE,
 
   # optional density plot before outlier removal
   if (sum(plot_export, plot_density) == 2) {
-    series <- unique(df$series)[1]
+    series <- unique(df$series_id)[1]
     grDevices::pdf(paste0("density_plot_", series, ".pdf"),
                    width = 8.3, height = 5.8)
   }
@@ -657,7 +657,7 @@ calctwdgro  <- function(df, tz) {
     dplyr::filter(is.na(value)) %>%
     dplyr::mutate(gro_yr = NA) %>%
     dplyr::bind_rows(., gro) %>%
-    dplyr::arrange(series, ts) %>%
+    dplyr::arrange(series_id, ts) %>%
     dplyr::mutate(twd = abs(value - max)) %>%
     dplyr::select(1:nc, twd, gro_yr)
 
@@ -826,10 +826,10 @@ summariseflags <- function(df) {
 #'
 saveplotthr <- function(df, thr_out, thr_jump) {
 
-  series <- df$series[1]
+  series <- df$series_id[1]
   thr_plot <- as.data.frame(matrix(ncol = 5, nrow = 1))
   colnames(thr_plot) <- c("thr_out_min", "thr_out_max", "thr_jump_min",
-                          "thr_jump_max", "series")
+                          "thr_jump_max", "series_id")
   thr_plot[1, ] <- c(thr_out[1], thr_out[2], thr_jump[1], thr_jump[2], series)
   thr_plot[, 1:4] <- as.numeric(thr_plot[, 1:4])
 

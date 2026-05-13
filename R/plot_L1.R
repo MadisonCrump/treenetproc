@@ -44,7 +44,7 @@ plot_L1 <- function(dendro_L1, dendro_L1_orig = NULL, plot_period = "full",
       dplyr::mutate(month = strftime(ts, format = "%m", tz = tz)) %>%
       dplyr::mutate(day = strftime(ts, format = "%d", tz = tz))
   }
-  sensors <- unique(data_L1$series)
+  sensors <- unique(data_L1$series_id)
   years <- unique(data_L1$year)
 
   if (plot_export) {
@@ -55,10 +55,10 @@ plot_L1 <- function(dendro_L1, dendro_L1_orig = NULL, plot_period = "full",
     passenv$sensor_label <- sensor_label
 
     data_L1_sensor <- data_L1 %>%
-      dplyr::filter(series == sensor_label)
+      dplyr::filter(series_id == sensor_label)
     if (length(data_L1_orig) != 0) {
       data_L1_orig_sensor <- data_L1_orig %>%
-        dplyr::filter(series == sensor_label)
+        dplyr::filter(series_id == sensor_label)
     } else {
       data_L1_orig_sensor <- NULL
     }

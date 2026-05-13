@@ -12,12 +12,12 @@ reversecorr <- function(data_L1, data_L2, reverse, tz) {
   L1 <- data_L1 %>%
     dplyr::mutate(diff_L1 = c(NA, diff(value, lag = 1))) %>%
     dplyr::rename(value_L1 = value) %>%
-    dplyr::select(series, ts, value_L1, diff_L1)
+    dplyr::select(series_id, ts, value_L1, diff_L1)
 
   df <- data_L2 %>%
     dplyr::mutate(diff_L2 = c(NA, diff(value, lag = 1))) %>%
     dplyr::rename(value_L2 = value) %>%
-    dplyr::left_join(., L1, by = c("series", "ts")) %>%
+    dplyr::left_join(., L1, by = c("series_id", "ts")) %>%
     dplyr::mutate(diff_plot = abs(diff_L1 - diff_L2)) %>%
     # add diff = 100 for reversed outliers (flag = "out")
     dplyr::mutate(diff_plot = ifelse(grepl("out", flags), 100, diff_plot)) %>%

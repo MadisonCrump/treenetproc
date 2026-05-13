@@ -8,13 +8,13 @@
 #'
 check_format <- function(df, input) {
   if (input == "long") {
-    if (!("series" %in% colnames(df))) {
-      stop("You need to provide a 'series' column for data in 'long' format.")
+    if (!("series_id" %in% colnames(df))) {
+      stop("You need to provide a 'series_id' column for data in 'long' format.")
     }
   }
   if (input == "wide") {
-    if ("series" %in% colnames(df)) {
-      stop("Data in 'wide' format does not need a 'series' column.")
+    if ("series_id" %in% colnames(df)) {
+      stop("Data in 'wide' format does not need a 'series_id' column.")
     }
   }
 
@@ -87,7 +87,7 @@ format_input <- function(df, input, tz) {
       dplyr::distinct() %>%
       dplyr::select(ts, col_names) %>%
       dplyr::mutate(id = 1:nrow(.)) %>%
-      stats::reshape(., timevar = "series", idvar = "id", varying = c(2:nc),
+      stats::reshape(., timevar = "series_id", idvar = "id", varying = c(2:nc),
                      direction = "long", v.names = "value",
                      times = col_names) %>%
       dplyr::select(-id)
@@ -103,7 +103,7 @@ format_input <- function(df, input, tz) {
     df <- df %>%
       dplyr::distinct() %>%
       dplyr::filter(!is.na(ts)) %>%
-      dplyr::arrange(series, ts)
+      dplyr::arrange(series_id, ts)
   }
 
   if (input == "long") {
@@ -114,7 +114,7 @@ format_input <- function(df, input, tz) {
       dplyr::select(ts, col_names) %>%
       transform(value = as.numeric(value)) %>%
       dplyr::filter(!is.na(ts)) %>%
-      dplyr::arrange(series, ts)
+      dplyr::arrange(series_id, ts)
   }
 
   return(df)
@@ -132,16 +132,16 @@ format_input <- function(df, input, tz) {
 #'
 check_missing <- function(df) {
   series_missing <- df %>%
-    dplyr::group_by(series) %>%
+    dplyr::group_by(series_id) %>%
     dplyr::mutate(unique_value = ifelse(length(unique(value)) == 1, 1, 0)) %>%
     dplyr::filter(unique_value == 1) %>%
-    dplyr::select(series) %>%
+    dplyr::select(series_id) %>%
     unlist(use.names = FALSE) %>%
     unique()
 
   if (length(series_missing) > 0) {
     df <- df %>%
-      dplyr::filter(!(series %in% series_missing))
+      dplyr::filter(!(series_id %in% series_missing))
 
     message(paste0("The following series were excluded due to missing data ",
                    "over the entire period: ",
@@ -194,15 +194,15 @@ reso_check_L0 <- function(df, reso, tz) {
 #'
 reso_check_L1 <- function(df, tz) {
   reso_check <- df %>%
-    dplyr::group_by(series) %>%
+    dplyr::group_by(series_id) %>%
     dplyr::mutate(reso_check =
                     as.numeric(difftime(ts, dplyr::lag(ts, 1),
                                         units = "mins", tz = tz))) %>%
-    dplyr::select(series, reso_check) %>%
+    dplyr::select(series_id, reso_check) %>%
     dplyr::filter(!is.na(reso_check)) %>%
     dplyr::distinct() %>%
     dplyr::ungroup() %>%
-    dplyr::select(-series) %>%
+    dplyr::select(-series_id) %>%
     dplyr::distinct() %>%
     unlist(use.names = FALSE)
 
@@ -262,10 +262,10 @@ create_temp_dummy <- function(df) {
 
   df <- as.data.frame(dd) %>%
     dplyr::select("ts" = 1) %>%
-    dplyr::mutate(series = "airtemperature") %>%
+    dplyr::mutate(series_id = "airtemperature") %>%
     dplyr::mutate(month = as.numeric(substr(ts, 6, 7))) %>%
     dplyr::mutate(value = ifelse(month %in% c(1, 2, 12), 0, 10)) %>%
-    dplyr::select(series, ts, value)
+    dplyr::select(series_id, ts, value)
 
   return(df)
 }

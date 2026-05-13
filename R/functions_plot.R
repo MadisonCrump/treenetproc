@@ -134,7 +134,7 @@ axis_labels_period <- function(df, plot_period, tz) {
 #'
 plot_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
 
-  series_plot <- unique(data_plot$series)
+  series_plot <- unique(data_plot$series_id)
   graphics::layout(mat = matrix(c(1, 2), nrow = 2), heights = c(2, 4),
                    widths = 1)
 
@@ -164,7 +164,7 @@ plot_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
   # print used variables and threshold values
   if (length(thr_plot) != 0) {
     thr_print <- thr_plot %>%
-      dplyr::filter(series == series_plot)
+      dplyr::filter(series_id == series_plot)
 
     graphics::par(mar = c(5.1, 4.1, 4.1, 2.1))
 
@@ -252,7 +252,7 @@ plot_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
 #'
 plot_twd_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
 
-  series_plot <- unique(data_plot$series)
+  series_plot <- unique(data_plot$series_id)
   # Increase height of info panel to accommodate larger text
   graphics::layout(mat = matrix(c(1, 2, 3), nrow = 3),
                    heights = c(3, 3, 4), widths = 1)
@@ -308,7 +308,7 @@ plot_twd_gro_yr_print_vars <- function(data_plot, thr_plot, tz) {
   # ============================================================================
   if (length(thr_plot) != 0) {
     thr_print <- thr_plot %>%
-      dplyr::filter(series == series_plot)
+      dplyr::filter(series_id == series_plot)
 
     graphics::par(mar = c(5.1, 4.1, 0.5, 2.1))
 
@@ -525,7 +525,7 @@ plot_interpol_points <- function(df) {
 #'
 plot_phase <- function(df, phase, plot_export) {
 
-  series <- unique(phase$series)
+  series <- unique(phase$series_id)
   if (plot_export) {
     grDevices::pdf(paste0("phase_plot_", series, ".pdf"),
                    width = 8.3, height = 5.8)
@@ -558,7 +558,7 @@ plot_phase <- function(df, phase, plot_export) {
     dplyr::select(ts = end, extrema) %>%
     dplyr::full_join(., extrema_start, by = c("ts", "extrema")) %>%
     dplyr::right_join(., df, by = "ts") %>%
-    dplyr::arrange(series, ts)
+    dplyr::arrange(series_id, ts)
 
   for (p in 1:nrow(phase)) {
     phase_plot <- phase[p, ]
@@ -575,7 +575,7 @@ plot_phase <- function(df, phase, plot_export) {
                    xlab = paste("Time (Hours)\n",
                                 as.Date(phase_plot$start), "to",
                                 as.Date(phase_plot$end)),
-                   main = paste0(df_plot$series[1], "\n",
+                   main = paste0(df_plot$series_id[1], "\n",
                                  ifelse(phase_plot$mode == "shrink",
                                         "Shrinkage", "Expansion")))
     graphics::axis.POSIXct(1, x = df_plot$ts, format = "%H")
@@ -676,7 +676,7 @@ plotting_L1 <- function(data_L1, data_L1_orig, plot_period, tz) {
 plot_density <- function(df, low, high, limit_val = 20, frost_thr,
                          reso) {
 
-  series <- unique(df$series)[1]
+  series <- unique(df$series_id)[1]
   df_plot <- df %>%
     dplyr::mutate(diff_val = c(NA, diff(value)) * (60 / reso))
 

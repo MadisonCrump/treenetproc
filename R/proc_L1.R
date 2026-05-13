@@ -73,7 +73,7 @@ proc_L1 <- function(data_L0, reso = 10, input = "long",
   # Format input data ---------------------------------------------------------
   df <- format_input(df = df, input = input, tz = tz)
   df <- check_missing(df = df)
-  series_vec <- unique(df$series)
+  series_vec <- unique(df$series_id)
 
 
   # Process to L1 (time-alignment) --------------------------------------------
@@ -81,13 +81,13 @@ proc_L1 <- function(data_L0, reso = 10, input = "long",
   df_L0 <- df
   for (s in 1:length(series_vec)) {
     df <- df_L0 %>%
-      dplyr::filter(series == series_vec[s])
+      dplyr::filter(series_id == series_vec[s])
 
     df <- tsalign(df = df, reso = reso, year = year, tz = tz)
     if (is.null(df)) return(NULL)
 
     df <- df %>%
-      dplyr::mutate(series = series_vec[s]) %>%
+      dplyr::mutate(series_id = series_vec[s]) %>%
       dplyr::mutate(
         version =
           utils::packageDescription("treenetproc",
@@ -96,7 +96,7 @@ proc_L1 <- function(data_L0, reso = 10, input = "long",
   }
 
   df <- dplyr::bind_rows(list_L1) %>%
-    dplyr::arrange(series, ts)
+    dplyr::arrange(series_id, ts)
 
   return(df)
 }

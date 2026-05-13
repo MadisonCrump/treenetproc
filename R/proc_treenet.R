@@ -88,7 +88,7 @@ proc_treenet <- function(site = NULL, sensor_name = NULL,
 
   # add reference temperature column
   df_L1 <- df_L1 %>%
-    dplyr::left_join(., meta_series, by = "series")
+    dplyr::left_join(., meta_series, by = "series_id")
 
   if (use_intl) {
     suppressMessages(

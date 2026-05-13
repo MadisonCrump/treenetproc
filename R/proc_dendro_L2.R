@@ -109,14 +109,13 @@
 #' proc_dendro_L2(dendro_L1 = dendro_data_L1, plot_period = "monthly",
 #'                plot_export = FALSE)
 #'
-proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
-                           tol_out = 10, tol_jump = 50,
-                           lowtemp = 5, frost_thr = 5,
-                           interpol = NULL, frag_len = NULL,
-                           plot = TRUE, plot_period = "full",
-                           plot_show = "all", plot_export = TRUE,
-                           plot_name = "proc_L2_plot",
-                           iter_clean = 1, tz = "Etc/GMT-1",
+proc_dendro_L2 <- function(dendro_L1, temp_L1 = list(), reso = 10,
+                           tol_jump = 50, tol_out = 10, frost_thr = 5,
+                           lowtemp = 5, interpol = 14400,
+                           frag_len = 3, iter_clean = 1, plot = TRUE,
+                           plot_period = "monthly", plot_show = "diff",
+                           plot_export = TRUE, plot_name = "proc_L2_plot",
+                           tz = "UTC",
                            prev_L2 = NULL,
                            prev_L2_reprocess_days = NULL) {
 
@@ -127,7 +126,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
 
   # Validate prev_L2 / prev_L2_reprocess_days ---------------------------------
   if (!is.null(prev_L2)) {
-    required_cols <- c("series", "ts", "value", "max", "twd", "gro_yr")
+    required_cols <- c("series_id", "ts", "value", "max", "twd", "gro_yr")
     if (!all(required_cols %in% colnames(prev_L2))) {
       stop("'prev_L2' must contain columns: ",
            paste(required_cols, collapse = ", "))
@@ -160,12 +159,12 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
 
   if (length(temp_L1) != 0) {
     tem <- temp_L1
-    tem_series <- unique(tem$series)
+    tem_series <- unique(tem$series_id)
 
     if (length(grep("temp", tem_series, ignore.case = T)) > 1) {
       stop("provide single temperature dataset.")
     }
-    if (sum(colnames(tem) %in% c("series", "ts", "value", "version")) != 4) {
+    if (sum(colnames(tem) %in% c("series_id", "ts", "value", "version")) != 4) {
       stop("provide time-aligned temperature data generated with 'proc_L1'")
     }
 
@@ -175,15 +174,15 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
 
   passenv$sample_temp <- FALSE
   if (length(temp_L1) == 0) {
-    df_series <- unique(df$series)
+    df_series <- unique(df$series_id)
 
     # for data from server
     if ("temp_ref" %in% colnames(df)) {
       temp_series <- stats::na.omit(unique(df$temp_ref))
       tem <- df %>%
-        dplyr::filter(series %in% temp_series)
+        dplyr::filter(series_id %in% temp_series)
       df <- df %>%
-        dplyr::filter(!(series %in% temp_series))
+        dplyr::filter(!(series_id %in% temp_series))
       dendro_L1 <- df
     }
     # for user-specified data
@@ -201,9 +200,9 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
       if (length(grep("temp", df_series, ignore.case = T)) == 1) {
         temp_series <- df_series[grep("temp", df_series, ignore.case = T)]
         tem <- df %>%
-          dplyr::filter(series == temp_series)
+          dplyr::filter(series_id == temp_series)
         df <- df %>%
-          dplyr::filter(series != temp_series) %>%
+          dplyr::filter(series_id != temp_series) %>%
           dplyr::mutate(temp_ref = temp_series)
         dendro_L1 <- df
       }
@@ -224,14 +223,14 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
 
 
   # Process to L2 (jump and gap corrections) ----------------------------------
-  series_vec <- unique(df$series)
+  series_vec <- unique(df$series_id)
   list_L2 <- vector("list", length = length(series_vec))
   list_thr <- vector("list", length = length(series_vec))
   df_L1 <- df
   for (s in 1:length(series_vec)) {
     writeLines(paste0("Processing ", series_vec[s], "..."))
     df <- df_L1 %>%
-      dplyr::filter(series == series_vec[s])
+      dplyr::filter(series_id == series_vec[s])
 
     if (all(is.na(df$value))) {
       message(paste0("There is no data available for ", series_vec[s],
@@ -248,7 +247,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
       first_ts_new <- min(df$ts[!is.na(df$value)], na.rm = TRUE)
 
       prev_series_all <- prev_L2 %>%
-        dplyr::filter(series == series_vec[s], !is.na(value)) %>%
+        dplyr::filter(series_id == series_vec[s], !is.na(value)) %>%
         dplyr::arrange(ts)
 
       if (nrow(prev_series_all) > 0) {
@@ -268,7 +267,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
 
         # Rows before the window: kept unchanged
         prev_unchanged <- prev_L2 %>%
-          dplyr::filter(series == series_vec[s],
+          dplyr::filter(series_id == series_vec[s],
                         ts < reprocess_from_ts) %>%
           dplyr::arrange(ts)
 
@@ -282,7 +281,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
         # Rows inside the window that need to be re-cleaned: convert back to L1
         # format (keep only columns present in df, drop derived L2 columns)
         prev_reprocess <- prev_L2 %>%
-          dplyr::filter(series == series_vec[s],
+          dplyr::filter(series_id == series_vec[s],
                         ts >= reprocess_from_ts,
                         ts < first_ts_new) %>%
           dplyr::arrange(ts)
@@ -308,7 +307,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
             dplyr::slice_tail(n = 1)
           if (nrow(anchor_row) > 0) {
             stub <- anchor_row %>%
-              dplyr::select(series, ts, value)
+              dplyr::select(series_id, ts, value)
             shared_cols <- intersect(colnames(df), colnames(stub))
             extra_cols  <- setdiff(colnames(df), colnames(stub))
             stub <- stub %>%
@@ -415,7 +414,7 @@ proc_dendro_L2 <- function(dendro_L1, temp_L1 = NULL,
       dplyr::mutate(twd    = ifelse(is.na(value), NA, twd)) %>%
       dplyr::mutate(max    = ifelse(is.na(value), NA, max)) %>%
       dplyr::mutate(frost  = ifelse(is.na(value), NA, frost)) %>%
-      dplyr::select(series, ts, value, max, twd, gro_yr, frost, flags) %>%
+      dplyr::select(series_id, ts, value, max, twd, gro_yr, frost, flags) %>%
       dplyr::mutate(
         version = utils::packageDescription("treenetproc",
                                             fields = "Version", drop = TRUE))
