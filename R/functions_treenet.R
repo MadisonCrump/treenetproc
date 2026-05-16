@@ -508,7 +508,6 @@ download_series <- function(meta_series, data_format,
       dplyr::select_if(!(names(.) %in% "insert_date")) %>%
       transform(ts = lubridate::force_tz(ts, tzone = "Etc/GMT-1")) %>%  # Force the timezone to Etc/GMT-1
       transform(ts = lubridate::with_tz(ts, tzone = tz)) %>%  # Convert to desired timezone
-      dplyr::rename(series = series_id) %>% # !!!! Try to remove series rename ----
     dplyr::arrange(ts) %>%
       dplyr::distinct() %>%
       transform(value = as.numeric(value))
